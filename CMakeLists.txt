@@ -9,6 +9,7 @@ add_subdirectory("examples/cpp-project-example")
 if(NOT MSVC)
   add_subdirectory("examples/raylib-sidebar-scrolling-container")
   add_subdirectory("examples/multi-context-raylib-sidebar-scrolling-container")
+  add_subdirectory("examples/raylib-multi-context")
 #  add_subdirectory("examples/cairo-pdf-rendering") Some issue with github actions populating cairo, disable for now
   add_subdirectory("examples/clay-official-website")
   add_subdirectory("examples/introducing-clay-video-demo")
