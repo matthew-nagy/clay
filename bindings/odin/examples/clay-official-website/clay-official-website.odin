@@ -62,7 +62,7 @@ border2pxRed := clay.BorderElementConfig {
     color = COLOR_RED
 }
 
-LandingPageBlob :: proc(index: u32, fontSize: u16, fontId: u16, color: clay.Color, text: string, image: ^raylib.Texture2D) {
+LandingPageBlob :: proc(index: u32, fontSize: u16, fontId: u16, color: clay.Color, $text: string, image: ^raylib.Texture2D) {
     if clay.UI()({
         id = clay.ID("HeroBlob", index),
         layout = { sizing = { width = clay.SizingGrow({ max = 480 }) }, padding = clay.PaddingAll(16), childGap = 16, childAlignment = clay.ChildAlignment{ y = .Center } },
@@ -252,7 +252,7 @@ ColorLerp :: proc(a: clay.Color, b: clay.Color, amount: f32) -> clay.Color {
     return clay.Color{a.r + (b.r - a.r) * amount, a.g + (b.g - a.g) * amount, a.b + (b.b - a.b) * amount, a.a + (b.a - a.a) * amount}
 }
 
-LOREM_IPSUM_TEXT := "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."
+LOREM_IPSUM_TEXT :: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."
 
 HighPerformancePage :: proc(lerpValue: f32, titleTextConfig: clay.TextElementConfig, widthSizing: clay.SizingAxis) {
     if clay.UI()({ id = clay.ID("PerformanceLeftText"), layout = { sizing = { width = widthSizing }, layoutDirection = .TopToBottom, childGap = 8 } }) {
@@ -321,7 +321,7 @@ HighPerformancePageMobile :: proc(lerpValue: f32) {
     }
 }
 
-RendererButtonActive :: proc(index: i32, text: string) {
+RendererButtonActive :: proc(index: i32, $text: string) {
     if clay.UI()({
         layout = { sizing = { width = clay.SizingFixed(300) }, padding = clay.PaddingAll(16) },
         backgroundColor = COLOR_RED,
@@ -331,7 +331,7 @@ RendererButtonActive :: proc(index: i32, text: string) {
     }
 }
 
-RendererButtonInactive :: proc(index: u32, text: string) {
+RendererButtonInactive :: proc(index: u32, $text: string) {
     if clay.UI()({ border = border2pxRed }) {
         if clay.UI()({
             id = clay.ID("RendererButtonInactiveInner", index),
@@ -451,7 +451,7 @@ createLayout :: proc(lerpValue: f32) -> clay.ClayArray(clay.RenderCommand) {
         if clay.UI()({ id = clay.ID("TopBorder5"), layout = { sizing = { clay.SizingGrow({ }), clay.SizingFixed(4) } }, backgroundColor = COLOR_TOP_BORDER_1 } ) {}
         if clay.UI()({
             id = clay.ID("ScrollContainerBackgroundRectangle"),
-            scroll = { vertical = true },
+            clip = { vertical = true, childOffset = clay.GetScrollOffset() },
             layout = { sizing = { clay.SizingGrow({ }), clay.SizingGrow({ }) }, layoutDirection = clay.LayoutDirection.TopToBottom },
             backgroundColor = COLOR_LIGHT,
             border = { COLOR_RED, { betweenChildren = 2} },
@@ -475,11 +475,11 @@ createLayout :: proc(lerpValue: f32) -> clay.ClayArray(clay.RenderCommand) {
 }
 
 loadFont :: proc(fontId: u16, fontSize: u16, path: cstring) {
-    raylibFonts[fontId] = RaylibFont {
+    assign_at(&raylib_fonts,fontId,Raylib_Font{
         font   = raylib.LoadFontEx(path, cast(i32)fontSize * 2, nil, 0),
         fontId = cast(u16)fontId,
-    }
-    raylib.SetTextureFilter(raylibFonts[fontId].font.texture, raylib.TextureFilter.TRILINEAR)
+    })
+    raylib.SetTextureFilter(raylib_fonts[fontId].font.texture, raylib.TextureFilter.TRILINEAR)
 }
 
 errorHandler :: proc "c" (errorData: clay.ErrorData) {
@@ -489,13 +489,13 @@ errorHandler :: proc "c" (errorData: clay.ErrorData) {
 }
 
 main :: proc() {
-    minMemorySize: u32 = clay.MinMemorySize()
+    minMemorySize: c.size_t = cast(c.size_t)clay.MinMemorySize()
     memory := make([^]u8, minMemorySize)
     arena: clay.Arena = clay.CreateArenaWithCapacityAndMemory(minMemorySize, memory)
     clay.Initialize(arena, {cast(f32)raylib.GetScreenWidth(), cast(f32)raylib.GetScreenHeight()}, { handler = errorHandler })
-    clay.SetMeasureTextFunction(measureText, nil)
+    clay.SetMeasureTextFunction(measure_text, nil)
 
-    raylib.SetConfigFlags({.VSYNC_HINT, .WINDOW_RESIZABLE, .WINDOW_HIGHDPI, .MSAA_4X_HINT})
+    raylib.SetConfigFlags({.VSYNC_HINT, .WINDOW_RESIZABLE, .MSAA_4X_HINT})
     raylib.InitWindow(windowWidth, windowHeight, "Raylib Odin Example")
     raylib.SetTargetFPS(raylib.GetMonitorRefreshRate(0))
     loadFont(FONT_ID_TITLE_56, 56, "resources/Calistoga-Regular.ttf")
@@ -536,7 +536,7 @@ main :: proc() {
         clay.SetLayoutDimensions({cast(f32)raylib.GetScreenWidth(), cast(f32)raylib.GetScreenHeight()})
         renderCommands: clay.ClayArray(clay.RenderCommand) = createLayout(animationLerpValue < 0 ? (animationLerpValue + 1) : (1 - animationLerpValue))
         raylib.BeginDrawing()
-        clayRaylibRender(&renderCommands)
+        clay_raylib_render(&renderCommands)
         raylib.EndDrawing()
     }
 }

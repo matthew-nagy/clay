@@ -17,6 +17,7 @@ when ODIN_OS == .Windows {
 }
 
 String :: struct {
+	isStaticallyAllocated: c.bool,
 	length: c.int32_t,
 	chars:  [^]c.char,
 }
@@ -102,6 +103,7 @@ TextAlignment :: enum EnumBackingType {
 }
 
 TextElementConfig :: struct {
+	userData:           rawptr,
 	textColor:          Color,
 	fontId:             u16,
 	fontSize:           u16,
@@ -109,7 +111,6 @@ TextElementConfig :: struct {
 	lineHeight:         u16,
 	wrapMode:           TextWrapMode,
 	textAlignment:      TextAlignment,
-	hashStringContents: bool,
 }
 
 ImageElementConfig :: struct {
@@ -134,9 +135,10 @@ BorderElementConfig :: struct {
 	width: BorderWidth,
 }
 
-ScrollElementConfig :: struct {
-	horizontal: bool,
-	vertical:   bool,
+ClipElementConfig :: struct {
+	horizontal:  bool, // clip overflowing elements on the "X" axis
+	vertical:    bool, // clip overflowing elements on the "Y" axis
+	childOffset: Vector2, // offsets the [X,Y] positions of all child elements, primarily for scrolling containers
 }
 
 FloatingAttachPointType :: enum EnumBackingType {
@@ -172,7 +174,7 @@ FloatingElementConfig :: struct {
 	offset:             Vector2,
 	expand:             Dimensions,
 	parentId:           u32,
-	zIndex:             i32,
+	zIndex:             i16,
 	attachment:         FloatingAttachPoints,
 	pointerCaptureMode: PointerCaptureMode,
 	attachTo:           FloatingAttachToElement,
@@ -234,7 +236,7 @@ ScrollContainerData :: struct {
 	scrollPosition:            ^Vector2,
 	scrollContainerDimensions: Dimensions,
 	contentDimensions:         Dimensions,
-	config:                    ScrollElementConfig,
+	config:                    ClipElementConfig,
 	// Indicates whether an actual scroll container matched the provided ID or if the default struct was returned.
 	found:                     bool,
 }
@@ -328,16 +330,16 @@ ClayArray :: struct($type: typeid) {
 }
 
 ElementDeclaration :: struct {
-	id: ElementId,
-	layout: LayoutConfig,
+	id:              ElementId,
+	layout:          LayoutConfig,
 	backgroundColor: Color,
-	cornerRadius: CornerRadius,
-	image: ImageElementConfig,
-	floating: FloatingElementConfig,
-	custom: CustomElementConfig,
-	scroll: ScrollElementConfig,
-	border: BorderElementConfig,
-	userData: rawptr,
+	cornerRadius:    CornerRadius,
+	image:           ImageElementConfig,
+	floating:        FloatingElementConfig,
+	custom:          CustomElementConfig,
+	clip:            ClipElementConfig,
+	border:          BorderElementConfig,
+	userData:        rawptr,
 }
 
 ErrorType :: enum EnumBackingType {
@@ -366,6 +368,8 @@ Context :: struct {} // opaque structure, only use as a pointer
 
 @(link_prefix = "Clay_", default_calling_convention = "c")
 foreign Clay {
+	_OpenElement :: proc() ---
+	_CloseElement :: proc() ---
 	MinMemorySize :: proc() -> u32 ---
 	CreateArenaWithCapacityAndMemory :: proc(capacity: c.size_t, offset: [^]u8) -> Arena ---
 	SetPointerState :: proc(position: Vector2, pointerDown: bool) ---
@@ -382,6 +386,7 @@ foreign Clay {
 	Hovered :: proc() -> bool ---
 	OnHover :: proc(onHoverFunction: proc "c" (id: ElementId, pointerData: PointerData, userData: rawptr), userData: rawptr) ---
 	PointerOver :: proc(id: ElementId) -> bool ---
+	GetScrollOffset :: proc() -> Vector2 ---
 	GetScrollContainerData :: proc(id: ElementId) -> ScrollContainerData ---
 	SetMeasureTextFunction :: proc(measureTextFunction: proc "c" (text: StringSlice, config: ^TextElementConfig, userData: rawptr) -> Dimensions, userData: rawptr) ---
 	SetQueryScrollOffsetFunction :: proc(queryScrollOffsetFunction: proc "c" (elementId: u32, userData: rawptr) -> Vector2, userData: rawptr) ---
@@ -398,9 +403,7 @@ foreign Clay {
 
 @(link_prefix = "Clay_", default_calling_convention = "c", private)
 foreign Clay {
-	_OpenElement :: proc() ---
 	_ConfigureOpenElement :: proc(config: ElementDeclaration) ---
-	_CloseElement :: proc() ---
 	_HashString :: proc(key: String, offset: u32, seed: u32) -> ElementId ---
 	_OpenTextElement :: proc(text: String, textConfig: ^TextElementConfig) ---
 	_StoreTextElementConfig :: proc(config: TextElementConfig) -> ^TextElementConfig ---
@@ -418,7 +421,13 @@ UI :: proc() -> proc (config: ElementDeclaration) -> bool {
 	return ConfigureOpenElement
 }
 
-Text :: proc(text: string, config: ^TextElementConfig) {
+Text :: proc($text: string, config: ^TextElementConfig) {
+	wrapped := MakeString(text)
+	wrapped.isStaticallyAllocated = true
+	_OpenTextElement(wrapped, config)
+}
+
+TextDynamic :: proc(text: string, config: ^TextElementConfig) {
 	_OpenTextElement(MakeString(text), config)
 }
 
@@ -428,6 +437,14 @@ TextConfig :: proc(config: TextElementConfig) -> ^TextElementConfig {
 
 PaddingAll :: proc(allPadding: u16) -> Padding {
 	return { left = allPadding, right = allPadding, top = allPadding, bottom = allPadding }
+}
+
+BorderOutside :: proc(width: u16) -> BorderWidth {
+	return {width, width, width, width, 0}
+}
+
+BorderAll :: proc(width: u16) -> BorderWidth {
+	return {width, width, width, width, width}
 }
 
 CornerRadiusAll :: proc(radius: f32) -> CornerRadius {
@@ -456,4 +473,8 @@ MakeString :: proc(label: string) -> String {
 
 ID :: proc(label: string, index: u32 = 0) -> ElementId {
 	return _HashString(MakeString(label), index, 0)
+}
+
+ID_LOCAL :: proc(label: string, index: u32 = 0) -> ElementId {
+	return _HashString(MakeString(label), index, _GetParentElementId())
 }
