@@ -16,6 +16,8 @@ Clay_Dimensions SFML_MeasureText(Clay_StringSlice text, Clay_TextElementConfig *
     sf::Text t;
     t.setFont(font);
     t.setString(chars);
+    t.setStyle(sf::Text::Bold);
+    t.setCharacterSize(config->fontSize);
     auto floatDimensions = t.getLocalBounds();
     width = floatDimensions.width;
     height = floatDimensions.height;
@@ -23,7 +25,7 @@ Clay_Dimensions SFML_MeasureText(Clay_StringSlice text, Clay_TextElementConfig *
     free(chars);
     Clay_Dimensions dimensions;
     dimensions.width = width;
-    dimensions.height = height;
+    dimensions.height = height * 1.8f;
     return dimensions;
 }
 
