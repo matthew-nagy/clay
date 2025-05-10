@@ -104,7 +104,7 @@ void Clay_SFML_Render(SFML_Renderer *renderer, Clay_RenderCommandArray renderCom
                 sf::Font& font = renderer->fonts[textData->fontId];
                 sf::Color textColour(textData->textColor.r, textData->textColor.g, textData->textColor.b, textData->textColor.a);
                 sf::Text text(cloned, font, textData->fontSize);
-                text.setPosition(boundingBox.x, boundingBox.y);
+                text.setPosition(int(boundingBox.x), int(boundingBox.y));
                 text.setLetterSpacing(textData->letterSpacing);
                 text.setFillColor(textColour);
                 text.setStyle(sf::Text::Bold);
@@ -239,6 +239,9 @@ void Clay_SFML_Render(SFML_Renderer *renderer, Clay_RenderCommandArray renderCom
 
                 break;
             }
+            case CLAY_RENDER_COMMAND_TYPE_CUSTOM:
+                printf("What they hell\n");
+                break;
             default: {
                 fprintf(stderr, "Error: unhandled render command: %d\n", renderCommand->commandType);
                 exit(1);
